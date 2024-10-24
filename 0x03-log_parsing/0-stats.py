@@ -3,66 +3,47 @@
 Write a script that reads stdin line by line and computes metrics:
 """
 import sys
-import signal
-import re
 
-# Initialize variables
-total_file_size = 0
-status_code_count = {
-        "200": 0, "301": 0, "400": 0, "401": 0,
-        "403": 0, "404": 0, "405": 0, "500": 0
-        }
-line_count = 0
+# store the count of all status codes in a dictionary
+status_codes_dict = {'200': 0, '301': 0, '400': 0, '401': 0, '403': 0,
+                     '404': 0, '405': 0, '500': 0}
 
-# Regular expression to match the expected log format
-log_pattern = re.compile(
-    r'^(\S+) - \[(.*?)\] "GET /projects/260 HTTP/1.1" (\d{3}) (\d+)$'
-)
-
-def print_matrices():
-    """
-    After every 10 lines and/or a keyboard interruption (CTRL + C)
-    print these statistics from the beginning:
-    """
-    print(f"File size: {total_file_size}")
-    for code in sorted(status_code_count.keys()):
-        if status_code_count[code] > 0:
-            print(f"{code} {status_code_count[code]}")
-
-def signal_handler(sig, frame):
-    """Handle keyboard interruption (CTRL + C) and print metrics"""
-    print_metrices()
-    sys.exit(0)
-
-# Register signal handler for CTRL + C
-signal.signal(signal.SIGINT, signal_handler)
+total_size = 0
+count = 0  # keep count of the number lines counted
 
 try:
     for line in sys.stdin:
-        # remove white space at the beginning and end
-        line = line.strip()
-        match = log_pattern.match(line)
-        if match:
-            # Extract the file size and status code
-            status_code = match.group(3)
-            file_size = int(match.group(4))
+        line_list = line.split(" ")
 
-            # Update the total file size
-            total_file_size += file_size
+        if len(line_list) > 4:
+            status_code = line_list[-2]
+            file_size = int(line_list[-1])
 
-            # Update status count if it is valid
-            if status_code in status_code_count:
-                status_code_count[status_code] += 1
+            # check if the status code receive exists in the dictionary and
+            # increment its count
+            if status_code in status_codes_dict.keys():
+                status_codes_dict[status_code] += 1
 
-            line_count += 1
+            # update total size
+            total_size += file_size
 
-        # Print metrics every 10 lines
-        if line_count % 10 == 0:
-            print_matrices()
+            # update count of lines
+            count += 1
 
-except Exception:
+        if count == 10:
+            count = 0  # reset count
+            print('File size: {}'.format(total_size))
+
+            # print out status code counts
+            for key, value in sorted(status_codes_dict.items()):
+                if value != 0:
+                    print('{}: {}'.format(key, value))
+
+except Exception as err:
     pass
 
 finally:
-    # Print the final metrics if exiting
-    print_metrices()
+    print('File size: {}'.format(total_size))
+    for key, value in sorted(status_codes_dict.items()):
+        if value != 0:
+            print('{}: {}'.format(key, value))
